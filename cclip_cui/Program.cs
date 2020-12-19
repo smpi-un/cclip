@@ -7,7 +7,6 @@ namespace cclip_cui
         [STAThread]
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
             cclip_lib.Program.Main(args);
             
         }
