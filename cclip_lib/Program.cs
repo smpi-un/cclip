@@ -14,20 +14,6 @@ using System.Xml.Serialization;
 
 namespace cclip_lib
 {
-    public class ConsoleHelper
-    {
-        /// <summary>
-        /// Allocates a new console for current process.
-        /// </summary>
-        [DllImport("kernel32.dll")]
-        public static extern Boolean AllocConsole();
-
-        /// <summary>
-        /// Frees the console.
-        /// </summary>
-        [DllImport("kernel32.dll")]
-        public static extern Boolean FreeConsole();
-    }
 
     public struct ClipData
     {
@@ -43,122 +29,38 @@ namespace cclip_lib
         }
     }
 
-
-
-        // This always writes to the parent console window and also to a redirected stdout if there is one.
-        // It would be better to do the relevant thing (eg write to the redirected file if there is one, otherwise
-        // write to the console) but it doesn't seem possible.
-        public class GUIConsoleWriter
-        {
-            [System.Runtime.InteropServices.DllImport("kernel32.dll")]
-            private static extern bool AttachConsole(int dwProcessId);
-
-            private const int ATTACH_PARENT_PROCESS = -1;
-
-            StreamWriter _stdOutWriter;
-
-            // this must be called early in the program
-            public GUIConsoleWriter()
-            {
-                // this needs to happen before attachconsole.
-                // If the output is not redirected we still get a valid stream but it doesn't appear to write anywhere
-                // I guess it probably does write somewhere, but nowhere I can find out about
-                var stdout = Console.OpenStandardOutput();
-                _stdOutWriter = new StreamWriter(stdout);
-                _stdOutWriter.AutoFlush = true;
-
-                AttachConsole(ATTACH_PARENT_PROCESS);
-            }
-
-            public void WriteLine(string line)
-            {
-                _stdOutWriter.WriteLine(line);
-                Console.WriteLine(line);
-            }
-        }
     public class Program
     {
-
-                [DllImport("kernel32.dll")]
-        static extern bool AttachConsole(uint dwProcessId);
-        [DllImport("kernel32.dll")]
-        private static extern bool GetFileInformationByHandle(SafeFileHandle hFile, out BY_HANDLE_FILE_INFORMATION lpFileInformation);
-        [DllImport("kernel32.dll")]
-        private static extern SafeFileHandle GetStdHandle(uint nStdHandle);
-        [DllImport("kernel32.dll")]
-        private static extern bool SetStdHandle(uint nStdHandle, SafeFileHandle hHandle);
-        [DllImport("kernel32.dll")]
-        private static extern bool DuplicateHandle(IntPtr hSourceProcessHandle, SafeFileHandle hSourceHandle, IntPtr hTargetProcessHandle,
-        out SafeFileHandle lpTargetHandle, uint dwDesiredAccess, bool bInheritHandle, uint dwOptions);
-
-        private const uint ATTACH_PARENT_PROCESS = 0xFFFFFFFF;
-        private const uint STD_OUTPUT_HANDLE = 0xFFFFFFF5;
-        private const uint STD_ERROR_HANDLE = 0xFFFFFFF4;
-        private const uint DUPLICATE_SAME_ACCESS = 2;
-
-        struct BY_HANDLE_FILE_INFORMATION
+        public static void Main(string[] args)
         {
-            public uint FileAttributes;
-            public System.Runtime.InteropServices.ComTypes.FILETIME CreationTime;
-            public System.Runtime.InteropServices.ComTypes.FILETIME LastAccessTime;
-            public System.Runtime.InteropServices.ComTypes.FILETIME LastWriteTime;
-            public uint VolumeSerialNumber;
-            public uint FileSizeHigh;
-            public uint FileSizeLow;
-            public uint NumberOfLinks;
-            public uint FileIndexHigh;
-            public uint FileIndexLow;
-        }
 
+            var allFlag = args.Contains("--all");
 
-
-        static void InitConsoleHandles()
-        {
-            SafeFileHandle hStdOut, hStdErr, hStdOutDup;
-            hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-            hStdErr = GetStdHandle(STD_ERROR_HANDLE);
-
-            // Get current process handle
-            IntPtr hProcess = Process.GetCurrentProcess().Handle;
-
-            // Duplicate Stdout handle to save initial value
-            DuplicateHandle(hProcess, hStdOut, hProcess, out hStdOutDup,
-            0, true, DUPLICATE_SAME_ACCESS);
-
-            // Duplicate Stderr handle to save initial value
-            DuplicateHandle(hProcess, hStdErr, hProcess, out SafeFileHandle hStdErrDup,
-            0, true, DUPLICATE_SAME_ACCESS);
-
-            // Attach to console window – this may modify the standard handles
-            AttachConsole(ATTACH_PARENT_PROCESS);
-
-            // Adjust the standard handles
-            if (GetFileInformationByHandle(GetStdHandle(STD_OUTPUT_HANDLE), out _))
+            if (args.Contains("--formats"))
             {
-                SetStdHandle(STD_OUTPUT_HANDLE, hStdOutDup);
+                var outText = FormatMode();
+                Console.WriteLine(outText);
+            }
+            else if( args.Contains("--xml"))
+            {
+                XmlMode(!allFlag);
+            }
+            else if( args.Contains("--json"))
+            {
+                JsonMode(!allFlag);
             }
             else
             {
-                SetStdHandle(STD_OUTPUT_HANDLE, hStdOut);
+                TextMode();
             }
 
-            if (GetFileInformationByHandle(GetStdHandle(STD_ERROR_HANDLE), out _))
-            {
-                SetStdHandle(STD_ERROR_HANDLE, hStdErrDup);
-            }
-            else
-            {
-                SetStdHandle(STD_ERROR_HANDLE, hStdErr);
-            }
         }
-
-
-        private static void FormatMode()
+        private static string FormatMode()
         {
             var dataObj = Clipboard.GetDataObject();
             var formats = dataObj.GetFormats();
             var formatsStr = string.Join("\n", formats);
-            Console.WriteLine(formatsStr);
+            return formatsStr;
         }
         private static void XmlMode(bool onFilter)
         {
@@ -244,34 +146,6 @@ namespace cclip_lib
 
         }
         
-        public static void Main(string[] args)
-        {
-            // InitConsoleHandles();
-            // AttachConsole(ATTACH_PARENT_PROCESS);
-            // ConsoleHelper.AllocConsole();
-
-
-
-            var allFlag = args.Contains("--all");
-
-            if (args.Contains("--formats"))
-            {
-                FormatMode();
-            }
-            else if( args.Contains("--xml"))
-            {
-                XmlMode(!allFlag);
-            }
-            else if( args.Contains("--json"))
-            {
-                JsonMode(!allFlag);
-            }
-            else
-            {
-                TextMode();
-            }
-
-        }
 
         static object ConvertDataForOutput(object sourceData)
         {
