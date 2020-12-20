@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30804.86
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cclip_cui", "cclip_cui\cclip_cui.csproj", "{43B616A1-8857-482D-A1E3-7865864F8D0B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "cclip_cui", "cclip_cui\cclip_cui.csproj", "{43B616A1-8857-482D-A1E3-7865864F8D0B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cclip_lib", "cclip_lib\cclip_lib.csproj", "{F2A988B2-200D-4315-B248-A1BF0FCBA7F3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "cclip_lib", "cclip_lib\cclip_lib.csproj", "{F2A988B2-200D-4315-B248-A1BF0FCBA7F3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ccliplog", "ccliplog\ccliplog.csproj", "{258D24FD-B7EB-4EE7-A207-53D9EB064D4C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{F2A988B2-200D-4315-B248-A1BF0FCBA7F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F2A988B2-200D-4315-B248-A1BF0FCBA7F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F2A988B2-200D-4315-B248-A1BF0FCBA7F3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{258D24FD-B7EB-4EE7-A207-53D9EB064D4C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{258D24FD-B7EB-4EE7-A207-53D9EB064D4C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{258D24FD-B7EB-4EE7-A207-53D9EB064D4C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{258D24FD-B7EB-4EE7-A207-53D9EB064D4C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
