@@ -2,8 +2,13 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net5.0-windows</TargetFramework>
+    <TargetFramework>net5.0-windows7.0</TargetFramework>
     <AssemblyName>cclip</AssemblyName>
+    <Company>電算倶楽部</Company>
+    <Authors>電算倶楽部</Authors>
+    <Version>0.1.0</Version>
+    <PackageProjectUrl>https://s-densan.hatenablog.com/</PackageProjectUrl>
+    <Copyright>電算倶楽部</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

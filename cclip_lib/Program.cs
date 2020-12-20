@@ -1,12 +1,12 @@
-﻿using Microsoft.Win32.SafeHandles;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Unicode;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
@@ -14,20 +14,6 @@ using System.Xml.Serialization;
 
 namespace cclip_lib
 {
-    public class ConsoleHelper
-    {
-        /// <summary>
-        /// Allocates a new console for current process.
-        /// </summary>
-        [DllImport("kernel32.dll")]
-        public static extern Boolean AllocConsole();
-
-        /// <summary>
-        /// Frees the console.
-        /// </summary>
-        [DllImport("kernel32.dll")]
-        public static extern Boolean FreeConsole();
-    }
 
     public struct ClipData
     {
@@ -43,155 +29,72 @@ namespace cclip_lib
         }
     }
 
-
-
-        // This always writes to the parent console window and also to a redirected stdout if there is one.
-        // It would be better to do the relevant thing (eg write to the redirected file if there is one, otherwise
-        // write to the console) but it doesn't seem possible.
-        public class GUIConsoleWriter
-        {
-            [System.Runtime.InteropServices.DllImport("kernel32.dll")]
-            private static extern bool AttachConsole(int dwProcessId);
-
-            private const int ATTACH_PARENT_PROCESS = -1;
-
-            StreamWriter _stdOutWriter;
-
-            // this must be called early in the program
-            public GUIConsoleWriter()
-            {
-                // this needs to happen before attachconsole.
-                // If the output is not redirected we still get a valid stream but it doesn't appear to write anywhere
-                // I guess it probably does write somewhere, but nowhere I can find out about
-                var stdout = Console.OpenStandardOutput();
-                _stdOutWriter = new StreamWriter(stdout);
-                _stdOutWriter.AutoFlush = true;
-
-                AttachConsole(ATTACH_PARENT_PROCESS);
-            }
-
-            public void WriteLine(string line)
-            {
-                _stdOutWriter.WriteLine(line);
-                Console.WriteLine(line);
-            }
-        }
     public class Program
     {
-
-                [DllImport("kernel32.dll")]
-        static extern bool AttachConsole(uint dwProcessId);
-        [DllImport("kernel32.dll")]
-        private static extern bool GetFileInformationByHandle(SafeFileHandle hFile, out BY_HANDLE_FILE_INFORMATION lpFileInformation);
-        [DllImport("kernel32.dll")]
-        private static extern SafeFileHandle GetStdHandle(uint nStdHandle);
-        [DllImport("kernel32.dll")]
-        private static extern bool SetStdHandle(uint nStdHandle, SafeFileHandle hHandle);
-        [DllImport("kernel32.dll")]
-        private static extern bool DuplicateHandle(IntPtr hSourceProcessHandle, SafeFileHandle hSourceHandle, IntPtr hTargetProcessHandle,
-        out SafeFileHandle lpTargetHandle, uint dwDesiredAccess, bool bInheritHandle, uint dwOptions);
-
-        private const uint ATTACH_PARENT_PROCESS = 0xFFFFFFFF;
-        private const uint STD_OUTPUT_HANDLE = 0xFFFFFFF5;
-        private const uint STD_ERROR_HANDLE = 0xFFFFFFF4;
-        private const uint DUPLICATE_SAME_ACCESS = 2;
-
-        struct BY_HANDLE_FILE_INFORMATION
+        public static void Main(bool list, bool all, bool outputJson, string clipboardFormat, string output)
         {
-            public uint FileAttributes;
-            public System.Runtime.InteropServices.ComTypes.FILETIME CreationTime;
-            public System.Runtime.InteropServices.ComTypes.FILETIME LastAccessTime;
-            public System.Runtime.InteropServices.ComTypes.FILETIME LastWriteTime;
-            public uint VolumeSerialNumber;
-            public uint FileSizeHigh;
-            public uint FileSizeLow;
-            public uint NumberOfLinks;
-            public uint FileIndexHigh;
-            public uint FileIndexLow;
-        }
-
-
-
-        static void InitConsoleHandles()
-        {
-            SafeFileHandle hStdOut, hStdErr, hStdOutDup;
-            hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-            hStdErr = GetStdHandle(STD_ERROR_HANDLE);
-
-            // Get current process handle
-            IntPtr hProcess = Process.GetCurrentProcess().Handle;
-
-            // Duplicate Stdout handle to save initial value
-            DuplicateHandle(hProcess, hStdOut, hProcess, out hStdOutDup,
-            0, true, DUPLICATE_SAME_ACCESS);
-
-            // Duplicate Stderr handle to save initial value
-            DuplicateHandle(hProcess, hStdErr, hProcess, out SafeFileHandle hStdErrDup,
-            0, true, DUPLICATE_SAME_ACCESS);
-
-            // Attach to console window – this may modify the standard handles
-            AttachConsole(ATTACH_PARENT_PROCESS);
-
-            // Adjust the standard handles
-            if (GetFileInformationByHandle(GetStdHandle(STD_OUTPUT_HANDLE), out _))
+            // 出力パス
+            var outPath = output;
+            if (outPath != "" && !System.IO.File.Exists(outPath))
             {
-                SetStdHandle(STD_OUTPUT_HANDLE, hStdOutDup);
+                Path.Combine(Directory.GetCurrentDirectory(), output);
+            }
+            // 出力文字列の取得
+            object resultData;
+            if (list)
+            {
+                resultData = FormatMode();
+            }
+            else if(outputJson)
+            {
+                resultData = JsonMode(!all);
             }
             else
             {
-                SetStdHandle(STD_OUTPUT_HANDLE, hStdOut);
+                resultData = TextMode(clipboardFormat);
+            }
+            // 出力
+            if (resultData != null)
+            {
+                if (output == "")
+                {
+                    if (resultData is string resultStr)
+                    {
+                        Console.WriteLine(resultStr);
+                    }
+                    else if (resultData is byte[] resultBytes)
+                    {
+                        Console.WriteLine(System.Convert.ToBase64String(resultBytes));
+                    }
+                }
+                else
+                {
+                    if (resultData is string resultStr)
+                    {
+                        File.WriteAllText(outPath, resultStr);
+                    }
+                    else if (resultData is byte[] resultBytes)
+                    {
+                        File.WriteAllBytes(outPath, resultBytes);
+                    }
+                }
             }
 
-            if (GetFileInformationByHandle(GetStdHandle(STD_ERROR_HANDLE), out _))
-            {
-                SetStdHandle(STD_ERROR_HANDLE, hStdErrDup);
-            }
-            else
-            {
-                SetStdHandle(STD_ERROR_HANDLE, hStdErr);
-            }
         }
-
-
-        private static void FormatMode()
+        private static string FormatMode()
         {
             var dataObj = Clipboard.GetDataObject();
             var formats = dataObj.GetFormats();
             var formatsStr = string.Join("\n", formats);
-            Console.WriteLine(formatsStr);
+            return formatsStr;
         }
-        private static void XmlMode(bool onFilter)
+        private static string JsonMode(bool onFilter)
         {
             var normalFormats = new string[] {
                 "Text",
                 "Bitmap",
                 "FileDrop",
                 "HTML Format",
-                "Csv",
-                "Rich Text Format",
-            };
-            IEnumerable<ClipData> clipData;
-            if (onFilter)
-            {
-                clipData = GetClipData().Where(x => normalFormats.Contains(x.Format));
-            }
-            else
-            {
-                clipData = GetClipData();
-            }
-            var json = ToXml(clipData);
-            Console.WriteLine(json);
-            
-
-        }
-        private static void JsonMode(bool onFilter)
-        {
-            var normalFormats = new string[] {
-                "Text",
-                "Bitmap",
-                "FileDrop",
-                "HTML Format",
-                "Csv",
                 "Rich Text Format",
             };
             IEnumerable<ClipData> clipData;
@@ -204,19 +107,28 @@ namespace cclip_lib
                 clipData = GetClipData();
             }
             var json = ToJson(clipData);
-            Console.WriteLine(json);
+            return json;
         }
-        private static void TextMode()
+        private static object TextMode(string clipboardFormat)
         {
             var normalFormats = new string[] {
-                "Text",
+                clipboardFormat.ToLower(),
             };
-            IEnumerable<ClipData> clipData = clipData = GetClipData().Where(x => normalFormats.Contains(x.Format));
+            var allClipData = GetClipData();
+            IEnumerable<ClipData> clipData = allClipData.Where(x => normalFormats.Contains(x.Format.ToLower()));
             if (clipData.ToArray().Length == 1)
             {
-                Console.WriteLine(clipData.First().Data.ToString());
+                return clipData.First().Data;
+            }
+            else
+            {
+                return null;
             }
         }
+        /// <summary>
+        /// クリップボードからデータを取得し、一般的な形式に直してリターンする。
+        /// </summary>
+        /// <returns></returns>
         public static ClipData[] GetClipData()
         {
             var dataObj = Clipboard.GetDataObject();
@@ -244,75 +156,66 @@ namespace cclip_lib
 
         }
         
-        public static void Main(string[] args)
-        {
-            // InitConsoleHandles();
-            // AttachConsole(ATTACH_PARENT_PROCESS);
-            // ConsoleHelper.AllocConsole();
 
-
-
-            var allFlag = args.Contains("--all");
-
-            if (args.Contains("--formats"))
-            {
-                FormatMode();
-            }
-            else if( args.Contains("--xml"))
-            {
-                XmlMode(!allFlag);
-            }
-            else if( args.Contains("--json"))
-            {
-                JsonMode(!allFlag);
-            }
-            else
-            {
-                TextMode();
-            }
-
-        }
-
+        /// <summary>
+        /// クリップボードから取得したデータを、一般的な形式
+        /// （文字列・バイト列・文字列の配列）に変換し、CぃｐDataオブジェクトとして
+        /// リターンする。
+        /// </summary>
+        /// <param name="sourceData"></param>
+        /// <returns></returns>
         static object ConvertDataForOutput(object sourceData)
         {
             static byte[] InteropBitmapToBytes(BitmapSource bmp)
             {
-                using (var stream = new MemoryStream())
-                {
-                    var encoder = new PngBitmapEncoder();
-                    encoder.Frames.Add(BitmapFrame.Create(bmp));
-                    encoder.Save(stream);
-                    var result = stream.ToArray();
-                    return result;
-                }
+                using var stream = new MemoryStream();
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bmp));
+                encoder.Save(stream);
+                var result = stream.ToArray();
+                return result;
             }
-            object dataForJson = sourceData.GetType().Name switch
+            object convertedData = sourceData switch
             {
-                "MemoryStream" => Convert.ToBase64String(((MemoryStream)sourceData).ToArray()).ToString(),
-                "InteropBitmap" => Convert.ToBase64String(InteropBitmapToBytes((InteropBitmap)sourceData)).ToString(),
-                //"Bitmap" => Convert.ToBase64String(BitmapToBytes((Bitmap)sourceData)).ToString(),
-                "String" => sourceData.ToString(),
-                "String[]" => (string[])sourceData,
+                // Byte列に変換する
+                MemoryStream stream => stream.ToArray(),
+                // Byte列に変換する
+                InteropBitmap bmp => InteropBitmapToBytes(bmp),
+                // 文字列に変換する
+                string str => str,
+                // 文字列の配列に変換する
+                string[] strArray => strArray,
                 _ => null,
             };
-            return dataForJson;
+            return convertedData;
         }
         ///
         /// クリップデータの列をJsonに変換する。
         static string ToJson(IEnumerable<ClipData> data)
         {
             var clipList = new List<Dictionary<string, object>>();
-            foreach (var clipData in data)
+            var jsonOption = new JsonSerializerOptions()
             {
+                Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+                WriteIndented = true,
+            };
+
+            foreach (var clip in data)
+            {
+                object jsonData = clip.Data switch
+                {
+                    byte[] bytes => System.Convert.ToBase64String(bytes),
+                    _ => clip.Data,
+                };
                 var oneData = new Dictionary<string, object>()
                 {
-                    {"format", clipData.Format },
-                    {"type", clipData.Source?.GetType().Name },
-                    {"data", clipData.Data},
+                    {"format", clip.Format },
+                    {"data", jsonData},
                 };
                 clipList.Add(oneData);
             }
-            var json = JsonSerializer.Serialize(clipList);
+            
+            var json = JsonSerializer.Serialize(clipList, jsonOption);
             return json;
         }
         struct XmlData

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "cclip_cui": {
+      "commandName": "Project",
+      "commandLineArgs": "-f Bitmap"
+    }
+  }
+}
