@@ -4,7 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Unicode;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
@@ -29,26 +31,53 @@ namespace cclip_lib
 
     public class Program
     {
-        public static void Main(string[] args)
+        public static void Main(bool list, bool all, bool outputJson, string clipboardFormat, string output)
         {
-            var allFlag = args.Contains("--all");
-            var argsLow = args.Select(x => x.ToLower());
-            if (argsLow.Contains("--formats"))
+            // 出力パス
+            var outPath = output;
+            if (outPath != "" && !System.IO.File.Exists(outPath))
             {
-                var outText = FormatMode();
-                Console.WriteLine(outText);
+                Path.Combine(Directory.GetCurrentDirectory(), output);
             }
-            /* else if( args.Contains("--xml"))
+            // 出力文字列の取得
+            object resultData;
+            if (list)
             {
-                XmlMode(!allFlag);
-            }*/
-            else if( argsLow.Contains("--json"))
+                resultData = FormatMode();
+            }
+            else if(outputJson)
             {
-                JsonMode(!allFlag);
+                resultData = JsonMode(!all);
             }
             else
             {
-                TextMode();
+                resultData = TextMode(clipboardFormat);
+            }
+            // 出力
+            if (resultData != null)
+            {
+                if (output == "")
+                {
+                    if (resultData is string resultStr)
+                    {
+                        Console.WriteLine(resultStr);
+                    }
+                    else if (resultData is byte[] resultBytes)
+                    {
+                        Console.WriteLine(System.Convert.ToBase64String(resultBytes));
+                    }
+                }
+                else
+                {
+                    if (resultData is string resultStr)
+                    {
+                        File.WriteAllText(outPath, resultStr);
+                    }
+                    else if (resultData is byte[] resultBytes)
+                    {
+                        File.WriteAllBytes(outPath, resultBytes);
+                    }
+                }
             }
 
         }
@@ -59,38 +88,13 @@ namespace cclip_lib
             var formatsStr = string.Join("\n", formats);
             return formatsStr;
         }
-        /*
-        private static void XmlMode(bool onFilter)
+        private static string JsonMode(bool onFilter)
         {
             var normalFormats = new string[] {
                 "Text",
                 "Bitmap",
                 "FileDrop",
                 "HTML Format",
-                "Csv",
-                "Rich Text Format",
-            };
-            IEnumerable<ClipData> clipData;
-            if (onFilter)
-            {
-                clipData = GetClipData().Where(x => normalFormats.Contains(x.Format));
-            }
-            else
-            {
-                clipData = GetClipData();
-            }
-            var json = ToXml(clipData);
-            Console.WriteLine(json);
-        }
-        */
-        private static void JsonMode(bool onFilter)
-        {
-            var normalFormats = new string[] {
-                "Text",
-                "Bitmap",
-                "FileDrop",
-                "HTML Format",
-                "Csv",
                 "Rich Text Format",
             };
             IEnumerable<ClipData> clipData;
@@ -103,17 +107,22 @@ namespace cclip_lib
                 clipData = GetClipData();
             }
             var json = ToJson(clipData);
-            Console.WriteLine(json);
+            return json;
         }
-        private static void TextMode()
+        private static object TextMode(string clipboardFormat)
         {
             var normalFormats = new string[] {
-                "Text",
+                clipboardFormat.ToLower(),
             };
-            IEnumerable<ClipData> clipData = clipData = GetClipData().Where(x => normalFormats.Contains(x.Format));
+            var allClipData = GetClipData();
+            IEnumerable<ClipData> clipData = allClipData.Where(x => normalFormats.Contains(x.Format.ToLower()));
             if (clipData.ToArray().Length == 1)
             {
-                Console.WriteLine(clipData.First().Data.ToString());
+                return clipData.First().Data;
+            }
+            else
+            {
+                return null;
             }
         }
         /// <summary>
@@ -185,6 +194,11 @@ namespace cclip_lib
         static string ToJson(IEnumerable<ClipData> data)
         {
             var clipList = new List<Dictionary<string, object>>();
+            var jsonOption = new JsonSerializerOptions()
+            {
+                Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+                WriteIndented = true,
+            };
 
             foreach (var clip in data)
             {
@@ -201,7 +215,7 @@ namespace cclip_lib
                 clipList.Add(oneData);
             }
             
-            var json = JsonSerializer.Serialize(clipList);
+            var json = JsonSerializer.Serialize(clipList, jsonOption);
             return json;
         }
         struct XmlData

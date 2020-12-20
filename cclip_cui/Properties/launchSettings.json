@@ -2,7 +2,7 @@
   "profiles": {
     "cclip_cui": {
       "commandName": "Project",
-      "commandLineArgs": "--json"
+      "commandLineArgs": "-f Bitmap"
     }
   }
 }
