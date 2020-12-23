@@ -62,6 +62,10 @@ namespace cclip_lib
                     {
                         Console.WriteLine(resultStr);
                     }
+                    else if (resultData is string[] resultStrArray)
+                    {
+                        Console.WriteLine(string.Join("\n",resultStrArray));
+                    }
                     else if (resultData is byte[] resultBytes)
                     {
                         Console.WriteLine(System.Convert.ToBase64String(resultBytes));
@@ -72,6 +76,10 @@ namespace cclip_lib
                     if (resultData is string resultStr)
                     {
                         File.WriteAllText(outPath, resultStr);
+                    }
+                    else if (resultData is string[] resultStrArray)
+                    {
+                        File.WriteAllText(outPath, string.Join("\n",resultStrArray));
                     }
                     else if (resultData is byte[] resultBytes)
                     {
@@ -111,12 +119,28 @@ namespace cclip_lib
         }
         private static object TextMode(string clipboardFormat)
         {
-            var normalFormats = new string[] {
-                clipboardFormat.ToLower(),
-            };
+            string[] formatList;
+            if (clipboardFormat == "") {
+                formatList = new string[]
+                {
+                    "Text",
+                    "FileDrop",
+                    "Bitmap",
+                    "Png",
+                    "Jpg",
+                    "Gif",
+                }.Select(x => x.ToLower()).ToArray();
+                
+            }
+            else
+            {
+                formatList = new string[] {
+                    clipboardFormat.ToLower(),
+                };
+            }
             var allClipData = GetClipData();
-            IEnumerable<ClipData> clipData = allClipData.Where(x => normalFormats.Contains(x.Format.ToLower()));
-            if (clipData.ToArray().Length == 1)
+            IEnumerable<ClipData> clipData = allClipData.Where(x => formatList.Contains(x.Format.ToLower()));
+            if (clipData.ToArray().Length > 0)
             {
                 return clipData.First().Data;
             }

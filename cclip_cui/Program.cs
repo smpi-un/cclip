@@ -19,7 +19,7 @@ namespace cclip_cui
             // リスト表示をするか
             var list = false;
             // 単体出力の場合のクリップボード取得元タイプ
-            var clipboardFormat = "Text";
+            var clipboardFormat = "";
             // json形式で出力するか
             var outputJson = false;
 
